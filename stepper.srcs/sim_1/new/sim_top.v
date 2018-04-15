@@ -52,17 +52,38 @@ begin : ramptask
 end
 endtask
 
+task cmd;
+input [7:0] cmd;
+begin : ramptask
+	integer i;
+	for (i = 0; i < 8; i = i + 1) begin
+		sdi = cmd[7];
+		cmd = { cmd[6:0], 1'b0 };
+		#13;
+		sck = 1;
+		#15;
+		sck = 0;
+		#10;
+	end
+	sen = 1;
+	#300;
+	sen = 0;
+	#300;
+end
+endtask
+
 reg [7:0] cmd3;
 initial begin: C_cmd
 	integer i;
 	integer h;
 	#5000;	// let pll settle
 	for (h = 0; h < 3; h = h + 1) begin
-		cmd3 = 8'hb5;
+//		cmd(8'h3a);	// home request
+		ramp(80'h000000000_000000080_a3); // steps/rev
 		//ramp(80'h005000000_000000049_9a);
 		//ramp(80'hffbffffff_000000100_9a);
+		ramp(80'h00fffffff_000000080_9a);
 		ramp(80'h000000078_000000080_9a);
-		ramp(80'h000000078_000000080_9a);
 		ramp(80'h000000000_000000100_9a);
 		ramp(80'hfffffff88_000000100_9a);
 		ramp(80'h000000000_000000100_9a);
@@ -70,19 +91,7 @@ initial begin: C_cmd
 		ramp(80'h000000000_000000100_9a);
 		ramp(80'hfffffff88_000000100_9a);
 		ramp(80'h000000000_000000100_9a);
-		for (i = 0; i < 8; i = i + 1) begin
-			sdi = cmd3[7];
-			cmd3 = { cmd3[6:0], 1'b0 };
-			#13;
-			sck = 1;
-			#15;
-			sck = 0;
-			#10;
-		end
-		sen = 1;
-		#1005;
-		sen = 0;
-		#583;
+		cmd(8'hb5);
 		#240000;
 	end
 end

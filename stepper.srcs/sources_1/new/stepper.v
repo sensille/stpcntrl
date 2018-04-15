@@ -100,11 +100,12 @@ always @(posedge clk)
 
 
 // register for steps/revolution
-reg [23:0] steps_per_rev;
-reg [23:0] pos_counter;
-reg home_request;
+reg [23:0] steps_per_rev = 24'd20;
+reg [23:0] pos_counter = 0;
+reg home_request = 0;
 
-assign rev = pos_counter == 0;
+//assign rev = pos_counter == 0;
+assign rev = pos_counter[23:8] == 0;
 
 // read side of fifo
 (* mark_debug = "true" *) wire rd_en;
