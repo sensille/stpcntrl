@@ -37,6 +37,7 @@ always @(posedge clk)
 
 // register for steps/revolution
 reg [23:0] steps_per_rev = 24'd20;
+reg [20:0] home_tolerance = 20'd5;
 reg home_request = 0;
 
 // read side of fifo
@@ -72,6 +73,7 @@ wire cmd_valid = (sen3 == 1) && (sen4 == 0);
 assign wr_en = cmd_valid && (spireg[7:0] == 8'h9a);
 wire set_running = (cmd_valid && spireg[7:0] == 8'hb5);
 wire set_rev_register = (cmd_valid && spireg[7:0] == 8'ha3);
+wire set_home_tolerance = (cmd_valid && spireg[7:0] == 8'ha6);
 wire set_home_request = (cmd_valid && spireg[7:0] == 8'h3b);
 reg start;
 always @(posedge clk) begin
@@ -79,6 +81,8 @@ always @(posedge clk) begin
 	home_request <= set_home_request;
 	if (set_rev_register)
 		steps_per_rev <= spireg[32:8];
+	if (set_home_tolerance)
+		home_tolerance <= spireg[29:8];
 end
 
 fifo u_fifo(
@@ -132,6 +136,8 @@ always @(posedge clk) begin
 end
 
 wire locked;
+wire missed_round;
+wire out_of_sync;
 
 home u_home(
 	.clk(clk),
@@ -144,16 +150,19 @@ home u_home(
 
 	.steps_per_rev(steps_per_rev),
 	.home_request(home_request),
+	.home_tolerance(home_tolerance),
 
-	.locked(locked)
+	.locked(locked),
+	.missed_round(missed_round),
+	.out_of_sync(out_of_sync)
 );
 
 //
 // route debug output
 //
-assign debug1 = 0; 		// yellow
+assign debug1 = locked; 	// yellow
 assign debug2 = home;		// orange
-assign debug3 = locked;		// red
-assign debug4 = running;	// brown
+assign debug3 = missed_round;	// red
+assign debug4 = out_of_sync;	// brown
 
 endmodule
