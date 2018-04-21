@@ -10,6 +10,7 @@ wire dir;
 reg sck = 0;
 reg sdi = 0;
 reg sen = 0;
+reg home = 0;
 
 stepper u_stepper(
 	.clk_50mhz(clk_50mhz),
@@ -19,7 +20,8 @@ stepper u_stepper(
 	.dir(dir),
 	.sck(sck),
 	.sdi(sdi),
-	.sen(sen)
+	.sen(sen),
+	.home(home)
 );
 
 initial begin: B_clk
@@ -78,8 +80,8 @@ initial begin: C_cmd
 	integer h;
 	#5000;	// let pll settle
 	for (h = 0; h < 3; h = h + 1) begin
-//		cmd(8'h3a);	// home request
-		ramp(80'h000000000_000000080_a3); // steps/rev
+		cmd(8'h3b);	// home request
+		ramp(80'h000000000_000000007_a3); // steps/rev
 		//ramp(80'h005000000_000000049_9a);
 		//ramp(80'hffbffffff_000000100_9a);
 		ramp(80'h00fffffff_000000080_9a);
@@ -92,6 +94,10 @@ initial begin: C_cmd
 		ramp(80'hfffffff88_000000100_9a);
 		ramp(80'h000000000_000000100_9a);
 		cmd(8'hb5);
+		#1000;
+		home = 1;
+		#100;
+		home = 0;
 		#240000;
 	end
 end
