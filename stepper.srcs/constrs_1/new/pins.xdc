@@ -8,6 +8,7 @@ set_property -dict {PACKAGE_PIN C7 IOSTANDARD LVCMOS33} [get_ports rev]
 set_property -dict {PACKAGE_PIN A7 IOSTANDARD LVCMOS33} [get_ports sck]
 set_property -dict {PACKAGE_PIN B5 IOSTANDARD LVCMOS33} [get_ports sdi]
 set_property -dict {PACKAGE_PIN K5 IOSTANDARD LVCMOS33} [get_ports sen]
+set_property -dict {PACKAGE_PIN J4 IOSTANDARD LVCMOS33} [get_ports sdo]
 
 set_property -dict {PACKAGE_PIN J3 IOSTANDARD LVCMOS33} [get_ports debug1]
 set_property -dict {PACKAGE_PIN K3 IOSTANDARD LVCMOS33} [get_ports debug2]

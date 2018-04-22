@@ -30,9 +30,6 @@ reg [POS_CNT_WIDTH-1:0] pos_counter = 0;
 reg [POS_CNT_WIDTH-3:0] delay_home_req = 0;
 reg searching_home = 0;
 
-assign searching  = searching_home;
-assign delaying = delay_home_req != 0;
-
 //assign rev = pos_counter == 0;
 assign rev = pos_counter[POS_CNT_WIDTH-1:6] == 0;
 reg seen_home = 0;
@@ -76,7 +73,7 @@ always @(posedge clk) begin
 			if (!seen_home)
 				missed_round <= 1;
 		end
-		if (home && !seen_home) begin
+		if (locked && home && !seen_home) begin
 			if (((pos_counter[POS_CNT_WIDTH-1] == 0) &&
 			     (pos_counter > home_tolerance)) ||
 			    ((pos_counter[POS_CNT_WIDTH-1] == 1) &&

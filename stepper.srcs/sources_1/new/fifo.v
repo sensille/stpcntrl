@@ -1,6 +1,5 @@
 `timescale 1ns / 1ps
 
-
 module fifo #(
 	parameter DATA_WIDTH = 72,
 	parameter ADDR_WIDTH = 6
@@ -13,7 +12,10 @@ module fifo #(
 	// read side
 	output [DATA_WIDTH - 1 : 0] dout,
 	input rd_en,
-	output empty
+	output empty,
+
+	// status
+	output [ADDR_WIDTH - 1 : 0] elemcnt
 );
 
 localparam ADDRS = 1 << ADDR_WIDTH;
@@ -28,6 +30,7 @@ wire [ADDR_WIDTH - 1 : 0] next_wrptr = wrptr + 1;
 assign empty = wrptr == rdptr;
 assign full = next_wrptr == rdptr;
 assign dout = ram[rdptr];
+assign elemcnt = wrptr - rdptr;
 
 always @(posedge clk) begin
 	if (rd_en && !empty) begin

@@ -25,7 +25,8 @@ module cntrl#(
 
 	// debug/status information
 	output reg underflow = 0,
-	output reg running = 0
+	output reg running = 0,
+	output reg idle = 0
 );
 
 
@@ -51,12 +52,18 @@ always @(posedge clk) begin
 		//
 		// load new command
 		//
+		if (rd_data[WIDTH-1:0] == 0) begin
+			idle <= 1;
+			running <= 0;
+		end else begin
+			idle <= 0;
+			running <= 1;
+		end
 		cmd_cnt <= rd_data[WIDTH-1:0];
 		acceleration <= rd_data[WIDTH*2-1:WIDTH];
 		underflow <= 0;
-		running <= 1;
 		// keep position and velocity
-	end else if (cmd_cnt == 0) begin
+	end else if (cmd_cnt == 0 && !(idle || start)) begin
 		//
 		// cmd done, but no new command available
 		//
@@ -68,11 +75,13 @@ always @(posedge clk) begin
 		step <= 0;
 		dir <= 0;
 		underflow <= 1;
+		idle <= 0;
 	end else begin
 		//
 		// cmd still running
 		//
-		cmd_cnt <= cmd_cnt - 1;
+		if (!idle)
+			cmd_cnt <= cmd_cnt - 1;
 		velocity <= new_velocity;
 		position <= new_position;
 	end

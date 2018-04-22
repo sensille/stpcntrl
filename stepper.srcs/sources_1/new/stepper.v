@@ -9,6 +9,7 @@ module stepper(
 	input	sck,	// bank 14, N13 (U7, pin 8)
 	input	sdi,	// bank 14, N16 (U7, pin 10)
 	input	sen,	// bank 14, P16 (U7, pin 12)
+	output	reg sdo = 0,
 	output	rev,
 	input	home,
 
@@ -49,42 +50,75 @@ wire underflow;
 //
 // serial interface with entry side FIFO
 //
-reg [79:0] spireg = 0;
+wire [15:0] status;
 wire wr_en;
 wire rd_empty;
-always @(posedge sck) begin
-	spireg <= { spireg[78:0], sdi };
-end
 
-// sync sen into our clock domain
-reg sen1;
-reg sen2;
-reg sen3;
-reg sen4;
+// sync sck to our clk clock using a 3-bits shift register
+reg [2:0] sck_r;
+always @(posedge clk)
+	sck_r <= {sck_r[1:0], sck};
+wire sck_risingedge = (sck_r[2:1] == 2'b01);
+wire sck_fallingedge = (sck_r[2:1] == 2'b10);
+
+// same thing for sen
+reg [2:0] sen_r;
+always @(posedge clk)
+	sen_r <= {sen_r[1:0], sen};
+wire sen_active = ~sen_r[1];  // sen is active low
+wire sen_risingedge = (sen_r[2:1]==2'b01);
+wire sen_fallingedge = (sen_r[2:1]==2'b10);
+
+// and for sdi
+reg [1:0] sdi_r;
+always @(posedge clk)
+	sdi_r <= {sdi_r[0], sdi};
+wire sdi_data = sdi_r[1];
+
+
+// receiving side
+reg [79:0] spireg = 0;
 
 always @(posedge clk) begin
-	sen1 <= sen;
-	sen2 <= sen1;
-	sen3 <= sen2;
-	sen4 <= sen3;
+	if (~sen_active)
+		spireg[7:0] <= 0;
+	else if (sck_risingedge) begin
+		spireg <= { spireg[78:0], sdi };
+	end
 end
 
-wire cmd_valid = (sen3 == 1) && (sen4 == 0);
-assign wr_en = cmd_valid && (spireg[7:0] == 8'h9a);
-wire set_running = (cmd_valid && spireg[7:0] == 8'hb5);
-wire set_rev_register = (cmd_valid && spireg[7:0] == 8'ha3);
-wire set_home_tolerance = (cmd_valid && spireg[7:0] == 8'ha6);
-wire set_home_request = (cmd_valid && spireg[7:0] == 8'h3b);
-reg start;
+// sending side
+reg [15:0] sporeg = 0;
+
+always @(posedge clk)
+	if (sen_active) begin
+		if(sen_fallingedge) begin
+			sporeg <= status;
+		end else if (sck_fallingedge) begin
+			sporeg <= { sporeg[14:0], 1'b0 };
+			sdo <= sporeg[15];
+		end
+	end
+
+wire cmd_start = (sen_risingedge && spireg[7:0] == 8'h81);
+wire cmd_queue = (sen_risingedge && spireg[7:0] == 8'h82);
+wire cmd_steps_per_rev = (sen_risingedge && spireg[7:0] == 8'h83);
+wire cmd_home_tolerance = (sen_risingedge && spireg[7:0] == 8'h84);
+wire cmd_home_request = (sen_risingedge && spireg[7:0] == 8'h85);
+
+assign wr_en = cmd_queue;
+reg start = 0;
+
 always @(posedge clk) begin
-	start <= set_running;
-	home_request <= set_home_request;
-	if (set_rev_register)
+	start <= cmd_start;
+	if (cmd_steps_per_rev)
 		steps_per_rev <= spireg[32:8];
-	if (set_home_tolerance)
+	if (cmd_home_tolerance)
 		home_tolerance <= spireg[29:8];
+	home_request <= cmd_home_request;
 end
 
+wire [6:0] elemcnt;
 fifo u_fifo(
 	.clk(clk),
 
@@ -96,11 +130,15 @@ fifo u_fifo(
 	// read side
 	.dout(rd_data),
 	.rd_en(rd_en),
-	.empty(rd_empty)
+	.empty(rd_empty),
+
+	// status
+	.elemcnt(elemcnt)
 );
 
 wire do_step;
 wire next_dir;
+wire idle;
 cntrl u_cntrl(
 	.clk(clk),
 
@@ -117,7 +155,8 @@ cntrl u_cntrl(
 
 	// debug/status information
 	.underflow(underflow),
-	.running(running)
+	.running(running),
+	.idle(idle)
 );
 
 assign led_1 = underflow;
@@ -156,6 +195,19 @@ home u_home(
 	.missed_round(missed_round),
 	.out_of_sync(out_of_sync)
 );
+
+//
+// status output via spi
+//
+assign status[7:0] = elemcnt;
+assign status[8] = running;
+assign status[9] = underflow;
+assign status[10] = idle;
+assign status[11] = locked;
+assign status[12] = missed_round;
+assign status[13] = out_of_sync;
+assign status[14] = 1;
+assign status[15] = 1;
 
 //
 // route debug output
